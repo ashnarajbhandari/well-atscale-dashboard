@@ -20,7 +20,7 @@ This dashboard was built to simulate the core analytical workflow of a WELL At-S
 ## How to Use
 Download `well_dashboard.html` and open it in any browser. No installation required.
 
-Or use the live version: [Open Dashboard]([YOUR_GITHUB_PAGES_URL_HERE](https://ashnarajbhandari.github.io/well-atscale-dashboard/well_dashboard.html))
+Or use the live version: [Open Dashboard](https://ashnarajbhandari.github.io/well-atscale-dashboard/well_dashboard.html)
 
 ## Built With
 HTML, CSS, JavaScript, Chart.js
