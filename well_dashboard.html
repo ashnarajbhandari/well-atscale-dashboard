@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELL At-Scale Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--border:#e4e2db;
+  --text:#1a1916;--muted:#b0ada4;--secondary:#7a7871;
+  --green:#2d6a4f;--green-bg:#edf5f0;
+  --amber:#b45309;--amber-bg:#fef3e2;
+  --red:#991b1b;--red-bg:#fef2f2;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --r:10px;--rs:6px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+.shell{display:flex;min-height:100vh}
+.sidebar{width:288px;min-width:288px;background:var(--surface);border-right:1px solid var(--border);padding:28px 22px;overflow-y:auto;position:sticky;top:0;height:100vh}
+.sidebar-logo{font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:28px}
+.sidebar-section{margin-bottom:24px}
+.sidebar-label{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:block}
+.building-input{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+input[type=text]{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--rs);font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);outline:none;transition:border .15s}
+input[type=text]:focus{border-color:var(--text)}
+textarea{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:var(--rs);font-family:var(--font);font-size:12px;color:var(--text);background:var(--bg);outline:none;resize:vertical;min-height:48px;line-height:1.5;transition:border .15s}
+textarea:focus{border-color:var(--text)}
+.btabs{display:flex;gap:5px;margin-bottom:14px}
+.btab{flex:1;padding:6px 0;border:1px solid var(--border);border-radius:var(--rs);background:transparent;font-family:var(--font);font-size:11px;font-weight:500;color:var(--secondary);cursor:pointer;transition:all .15s;text-align:center}
+.btab.active{background:var(--text);border-color:var(--text);color:#fff}
+.slider-row{padding:9px 0;border-bottom:1px solid var(--border)}
+.slider-row:last-child{border-bottom:none}
+.slider-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.slider-name{font-size:12px;font-weight:500}
+.score-num-input{width:44px;padding:3px 5px;border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:11px;color:var(--text);background:var(--surface);outline:none;text-align:center;transition:border .15s}
+.score-num-input:focus{border-color:var(--text)}
+input[type=range]{width:100%;accent-color:#1a1916;cursor:pointer;margin-top:2px}
+.note-row{margin-top:4px;margin-bottom:2px}
+.note-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.main{flex:1;padding:36px 40px;overflow-y:auto;max-width:1120px}
+.page-title{font-size:22px;font-weight:500;letter-spacing:-.02em;margin-bottom:3px}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:11px;margin-bottom:28px}
+.score-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;position:relative;overflow:hidden}
+.card-top-bar{position:absolute;top:0;left:0;right:0;height:2px}
+.card-label{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-score{font-size:34px;font-weight:300;letter-spacing:-.03em;line-height:1;margin-bottom:7px}
+.cert-pill{display:inline-block;font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:20px;margin-bottom:7px}
+.card-meta{font-size:11px;color:var(--muted)}
+.nav-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:26px;overflow-x:auto}
+.nav-tab{padding:9px 16px;font-size:13px;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;font-family:var(--font);white-space:nowrap;transition:all .15s}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:18px}
+.chart-title{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:18px}
+.gauge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.gauge-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;text-align:center}
+.gauge-label{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+.gauge-canvas-wrap{position:relative;width:160px;height:88px;margin:0 auto 8px}
+.gauge-score{position:absolute;bottom:0;left:0;right:0;font-size:22px;font-weight:300;letter-spacing:-.02em;text-align:center}
+.gauge-cert{font-size:11px;color:var(--muted)}
+.heatmap-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:18px;overflow-x:auto}
+.heatmap-grid{display:grid;gap:3px}
+.hm-cell{height:38px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:500;transition:opacity .2s;cursor:default;position:relative}
+.hm-cell:hover{opacity:.8}
+.hm-cell .target-marker{position:absolute;bottom:3px;right:5px;font-size:8px;opacity:.7}
+.hm-row-label{font-size:11px;font-weight:500;color:var(--secondary);display:flex;align-items:center;padding-right:4px}
+.hm-col-label{font-size:10px;color:var(--muted);text-align:center;padding:0 2px;line-height:1.3}
+.legend-bar{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:11px;color:var(--muted)}
+.legend-grad{height:8px;width:180px;border-radius:4px;background:linear-gradient(to right,#991b1b,#b45309,#2d6a4f)}
+.breakdown-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.bt-header{display:grid;padding:11px 18px;background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bt-row{display:grid;padding:13px 18px;border-bottom:1px solid var(--border);align-items:center;transition:background .1s}
+.bt-row:last-child{border-bottom:none}
+.bt-row:hover{background:var(--bg)}
+.concept-name{font-size:13px;font-weight:500}
+.concept-desc{font-size:11px;color:var(--muted);margin-top:1px}
+.score-cell{text-align:center}
+.sc-num{font-family:var(--mono);font-size:13px;font-weight:500;margin-bottom:3px}
+.mini-bar-bg{height:3px;background:var(--border);border-radius:2px;width:56px;margin:0 auto;position:relative}
+.mini-bar{height:100%;border-radius:2px}
+.target-tick{position:absolute;top:-2px;width:2px;height:7px;background:var(--text);border-radius:1px;opacity:.5}
+.bench-cell{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center}
+.bsel{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap}
+.bsel-btn{padding:5px 14px;border:1px solid var(--border);border-radius:20px;background:transparent;font-family:var(--font);font-size:12px;color:var(--secondary);cursor:pointer;transition:all .15s}
+.bsel-btn.active{font-weight:500}
+.gap-item{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:14px}
+.gap-item:last-child{border-bottom:none}
+.gap-concept{width:116px;font-size:13px;font-weight:500;flex-shrink:0}
+.gap-bar-wrap{flex:1;display:flex;align-items:center}
+.gap-bar-bg{flex:1;height:5px;background:var(--border);border-radius:3px;position:relative}
+.gap-bar-fill{position:absolute;top:0;height:5px;border-radius:3px}
+.gap-val{font-family:var(--mono);font-size:12px;width:34px;text-align:right;flex-shrink:0}
+.sec-div{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:20px 0 10px}
+.rec-item{padding:14px 16px;border:1px solid var(--border);border-radius:var(--r);margin-bottom:7px;background:var(--surface)}
+.rec-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.rec-concept{font-size:13px;font-weight:500}
+.rec-badge{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:4px}
+.rec-text{font-size:12px;color:var(--secondary);line-height:1.6}
+.rec-note{font-size:11px;color:var(--muted);margin-top:6px;font-style:italic;border-top:1px solid var(--border);padding-top:6px}
+.trend-controls{display:flex;gap:9px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.trend-controls input{width:150px}
+.btn{padding:7px 15px;border:1px solid var(--border);border-radius:var(--rs);background:var(--surface);font-family:var(--font);font-size:12px;font-weight:500;color:var(--text);cursor:pointer;transition:all .15s}
+.btn:hover{background:var(--bg)}
+.btn-p{background:var(--text);border-color:var(--text);color:#fff}
+.btn-p:hover{opacity:.85}
+.empty-state{text-align:center;padding:36px;color:var(--muted);font-size:13px}
+.export-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:16px}
+.export-title{font-size:14px;font-weight:500;margin-bottom:6px}
+.export-desc{font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.6}
+.export-btns{display:flex;gap:9px;flex-wrap:wrap}
+.share-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:9px 12px;font-family:var(--mono);font-size:11px;color:var(--secondary);word-break:break-all;margin-top:12px;cursor:pointer;transition:background .15s}
+.share-box:hover{background:var(--border)}
+.share-copied{font-size:11px;color:var(--green);margin-top:6px;display:none}
+.target-setting{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.target-setting label{font-size:12px;color:var(--secondary);white-space:nowrap}
+
+/* ---- PRINT STYLES ---- */
+@media print {
+  @page{margin:1.5cm;size:A4}
+  body{background:#fff;font-size:12px}
+  .sidebar,.nav-tabs,.trend-controls,.export-btns,.btn,.share-box,.share-copied{display:none!important}
+  .shell{display:block}
+  .main{padding:0;max-width:100%}
+  .tab-panel{display:block!important}
+  .page-title{font-size:18px;margin-bottom:2px}
+  .cards-row{grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .score-card{padding:12px;break-inside:avoid}
+  .card-score{font-size:26px}
+  .chart-wrap,.heatmap-wrap{break-inside:avoid;margin-bottom:12px;padding:14px;border:1px solid #ddd}
+  .chart-title{margin-bottom:10px}
+  canvas{max-height:260px!important}
+  .gauge-grid{grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .gauge-card{padding:12px;break-inside:avoid}
+  .breakdown-table{break-inside:avoid}
+  .bt-row{padding:8px 14px}
+  .rec-item{break-inside:avoid;padding:10px 12px;margin-bottom:5px}
+  .gap-item{padding:8px 0}
+  .nav-tab,.btab,.bsel-btn{display:none}
+  .print-section-title{display:block!important;font-size:13px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:#7a7871;margin:20px 0 10px;border-bottom:1px solid #e4e2db;padding-bottom:6px}
+  .print-date{display:block!important;font-size:11px;color:#b0ada4;margin-bottom:16px}
+}
+@media screen{
+  .print-section-title,.print-date{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="sidebar">
+  <div class="sidebar-logo">WELL At-Scale</div>
+
+  <div class="sidebar-section">
+    <span class="sidebar-label">Buildings</span>
+    <div id="buildingInputs"></div>
+  </div>
+
+  <div class="sidebar-section">
+    <span class="sidebar-label">Target Score</span>
+    <div class="target-setting">
+      <label>Per concept area</label>
+      <input type="number" class="score-num-input" id="targetScoreInput" min="0" max="100" value="70" style="width:52px" oninput="updateTarget(this.value)">
+      <span style="font-size:11px;color:var(--muted)">/100</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.5">Shown as a marker on score bars. Areas below target are flagged in gap analysis.</div>
+  </div>
+
+  <div class="sidebar-section">
+    <span class="sidebar-label">Score Entry</span>
+    <div class="btabs" id="scoringTabs"></div>
+    <div id="sliderPanels"></div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-title">Performance Dashboard</div>
+  <div class="page-sub">WELL At-Scale Standard — 10 concept area assessment</div>
+  <div class="print-date" id="printDate"></div>
+
+  <div class="cards-row" id="scoreCards"></div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="nav-tab" onclick="switchTab('heatmap',this)">Heatmap</button>
+    <button class="nav-tab" onclick="switchTab('breakdown',this)">Breakdown</button>
+    <button class="nav-tab" onclick="switchTab('gaps',this)">Gap Analysis</button>
+    <button class="nav-tab" onclick="switchTab('priority',this)">Priority Matrix</button>
+    <button class="nav-tab" onclick="switchTab('trend',this)">Trend</button>
+    <button class="nav-tab" onclick="switchTab('export',this)">Export & Share</button>
+  </div>
+
+  <div id="tab-overview" class="tab-panel active">
+    <div class="print-section-title">Overall Scores</div>
+    <div class="gauge-grid" id="gaugeGrid"></div>
+    <div class="print-section-title">Radar Overview</div>
+    <div class="chart-wrap">
+      <div class="chart-title">Radar — All Concept Areas vs Benchmark</div>
+      <canvas id="radarChart" style="max-height:380px"></canvas>
+    </div>
+  </div>
+
+  <div id="tab-heatmap" class="tab-panel">
+    <div class="print-section-title">Heatmap</div>
+    <div class="heatmap-wrap">
+      <div class="chart-title">Heatmap — Score by Building &amp; Concept Area</div>
+      <div id="heatmapGrid"></div>
+      <div class="legend-bar">
+        <span>Low</span><div class="legend-grad"></div><span>High</span>
+        <span style="margin-left:12px;color:var(--muted)">▲ = above target</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-breakdown" class="tab-panel">
+    <div class="print-section-title">Score Breakdown</div>
+    <div id="breakdownTable"></div>
+  </div>
+
+  <div id="tab-gaps" class="tab-panel">
+    <div class="print-section-title">Gap Analysis</div>
+    <div class="bsel" id="gapBuildingSelect"></div>
+    <div class="chart-wrap">
+      <div class="chart-title">Gap vs Industry Benchmark</div>
+      <div id="gapBars"></div>
+    </div>
+    <div id="gapRecs"></div>
+  </div>
+
+  <div id="tab-priority" class="tab-panel">
+    <div class="print-section-title">Priority Matrix</div>
+    <div class="bsel" id="priorityBuildingSelect"></div>
+    <div class="chart-wrap">
+      <div class="chart-title">Impact vs Implementation Effort — bubble size reflects improvement potential</div>
+      <canvas id="priorityChart" style="height:400px"></canvas>
+    </div>
+  </div>
+
+  <div id="tab-trend" class="tab-panel">
+    <div class="trend-controls">
+      <input type="text" id="trendLabel" value="Q2 2026" placeholder="Period label">
+      <button class="btn btn-p" onclick="saveTrend()">Save snapshot</button>
+      <button class="btn" onclick="clearTrend()">Clear</button>
+    </div>
+    <div id="trendChartWrap" class="chart-wrap" style="display:none">
+      <div class="chart-title">Score Over Time</div>
+      <canvas id="trendChart" style="max-height:300px"></canvas>
+    </div>
+    <div id="trendEmpty" class="empty-state">Save two or more snapshots to see the trend line.</div>
+  </div>
+
+  <div id="tab-export" class="tab-panel">
+    <div class="export-card">
+      <div class="export-title">Download Report</div>
+      <div class="export-desc">Export scores, gaps, and recommendations for leadership review.</div>
+      <div class="export-btns">
+        <button class="btn btn-p" onclick="exportTxt()">Download .txt report</button>
+        <button class="btn" onclick="exportCsv()">Download .csv scores</button>
+        <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+    </div>
+    <div class="export-card">
+      <div class="export-title">Share This Assessment</div>
+      <div class="export-desc">Copy this link to share the current scores and building names with anyone. All data is encoded in the URL — no account or server needed.</div>
+      <button class="btn btn-p" onclick="generateShareUrl()">Generate share link</button>
+      <div class="share-box" id="shareUrlBox" style="display:none" onclick="copyShareUrl()"></div>
+      <div class="share-copied" id="shareCopied">Copied to clipboard!</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const CONCEPTS=["Air","Water","Nourishment","Light","Movement","Thermal Comfort","Sound","Materials","Mind","Community"];
+const DESCS={"Air":"Indoor air quality, ventilation, pollutant control","Water":"Water quality, access, management","Nourishment":"Healthy food access, nutrition standards","Light":"Natural & artificial lighting, circadian health","Movement":"Physical activity, ergonomic design","Thermal Comfort":"Temperature, humidity, personal comfort","Sound":"Acoustic performance, noise reduction","Materials":"Chemical safety, hazardous material management","Mind":"Mental health support, cognitive performance","Community":"Inclusive design, equity, social well-being"};
+const BENCHMARK={"Air":70,"Water":62,"Nourishment":55,"Light":68,"Movement":60,"Thermal Comfort":65,"Sound":50,"Materials":55,"Mind":60,"Community":58};
+const WEIGHTS={"Air":1.2,"Water":1.0,"Nourishment":0.9,"Light":1.1,"Movement":1.0,"Thermal Comfort":1.0,"Sound":1.0,"Materials":0.9,"Mind":1.1,"Community":0.9};
+const IMPACT={"Air":5,"Water":3,"Nourishment":3,"Light":5,"Movement":4,"Thermal Comfort":4,"Sound":4,"Materials":3,"Mind":5,"Community":3};
+const EFFORT={"Air":4,"Water":3,"Nourishment":2,"Light":4,"Movement":3,"Thermal Comfort":4,"Sound":3,"Materials":5,"Mind":2,"Community":2};
+const RECS={"Air":"Upgrade HVAC filtration to MERV-13+ and implement real-time CO2 and VOC monitoring.","Water":"Install point-of-use filtration and conduct regular water quality testing.","Nourishment":"Introduce healthy food options and implement nutrition labeling in cafeterias.","Light":"Maximize daylight access and install circadian-tuned LED lighting systems.","Movement":"Add standing desks, walking paths, and active design elements.","Thermal Comfort":"Install individual thermal controls and upgrade HVAC zoning.","Sound":"Add acoustic panels, sound masking systems, and quiet focus zones.","Materials":"Audit materials for harmful chemicals and transition to low-VOC alternatives.","Mind":"Expand mental health resources and create restorative spaces.","Community":"Strengthen inclusive design practices and launch employee wellness programs."};
+const COLORS=["#2563a8","#c2410c","#15803d"];
+const COLORS_A=["rgba(37,99,168,0.13)","rgba(194,65,12,0.13)","rgba(21,128,61,0.13)"];
+const CERT=[[85,"Platinum","#6d5fc7","#f0eeff"],[75,"Gold","#92660a","#fef3e2"],[65,"Silver","#52545c","#f4f4f5"],[50,"Bronze","#8b4513","#fdf0e8"],[0,"Not Certified","#991b1b","#fef2f2"]];
+const DEFAULTS=[[70,60,52,68,58,65,48,52,58,55],[75,65,55,70,60,70,52,60,60,60],[80,70,60,75,65,70,58,62,65,65]];
+
+let scores=CONCEPTS.map((_,ci)=>DEFAULTS.map(b=>b[ci]));
+let buildingNames=["Building A — Office Campus","Building B — Research Facility","Building C — Corporate HQ"];
+let notes=buildingNames.map(()=>Object.fromEntries(CONCEPTS.map(c=>[c,''])));
+let targetScore=70;
+let activeScoringTab=0,activeGapB=0,activePriorityB=0,trendData=[];
+let radarChart,trendChartObj,priorityChartObj;
+
+// --- URL state ---
+function encodeState(){
+  const state={n:buildingNames,s:scores,t:targetScore,no:notes};
+  return btoa(encodeURIComponent(JSON.stringify(state)))
+}
+function decodeState(hash){
+  try{
+    const state=JSON.parse(decodeURIComponent(atob(hash)));
+    if(state.n)buildingNames=state.n;
+    if(state.s)scores=state.s;
+    if(state.t)targetScore=state.t;
+    if(state.no)notes=state.no;
+    else notes=buildingNames.map(()=>Object.fromEntries(CONCEPTS.map(c=>[c,''])));
+  }catch(e){console.warn('Could not decode state',e)}
+}
+function loadFromUrl(){
+  const hash=window.location.hash.slice(1);
+  if(hash){decodeState(hash);return true}
+  return false
+}
+function generateShareUrl(){
+  const url=window.location.href.split('#')[0]+'#'+encodeState();
+  document.getElementById('shareUrlBox').textContent=url;
+  document.getElementById('shareUrlBox').style.display='block';
+  document.getElementById('shareCopied').style.display='none';
+}
+function copyShareUrl(){
+  const url=document.getElementById('shareUrlBox').textContent;
+  navigator.clipboard.writeText(url).then(()=>{
+    document.getElementById('shareCopied').style.display='block';
+    setTimeout(()=>document.getElementById('shareCopied').style.display='none',2500);
+  })
+}
+
+// --- Target score ---
+function updateTarget(val){
+  const v=Math.max(0,Math.min(100,parseInt(val)||70));
+  targetScore=v;
+  renderAll()
+}
+
+// --- Helpers ---
+function getCert(s){for(const[t,l,c,bg]of CERT)if(s>=t)return{label:l,color:c,bg};return{label:"Not Certified",color:"#991b1b",bg:"#fef2f2"}}
+function scoreColor(s){return s>=targetScore?"#2d6a4f":s>=(targetScore*0.8)?"#b45309":"#991b1b"}
+function heatColor(s){
+  if(s>=70){const t=(s-70)/30;return`rgb(${Math.round(45+t*10)},${Math.round(106+t*50)},${Math.round(79+t*20)})`}
+  if(s>=55){const t=(s-55)/15;return`rgb(${Math.round(180)},${Math.round(83+t*23)},${Math.round(9+t*70)})`}
+  const t=s/55;return`rgb(${Math.round(153+t*27)},${Math.round(27+t*56)},27)`
+}
+function weightedScore(i){
+  let t=0,w=0;CONCEPTS.forEach((c,ci)=>{t+=scores[ci][i]*WEIGHTS[c];w+=WEIGHTS[c]});return Math.round(t/w)
+}
+function shortName(i){return buildingNames[i].split("—")[0].trim()}
+
+// --- Sidebar ---
+function renderBuildingInputs(){
+  document.getElementById('buildingInputs').innerHTML=buildingNames.map((n,i)=>`
+    <div class="building-input">
+      <span class="dot" style="background:${COLORS[i]}"></span>
+      <input type="text" value="${n.replace(/"/g,'&quot;')}" oninput="updateName(${i},this.value)" style="width:calc(100% - 20px);display:inline-block">
+    </div>`).join('')
+}
+function updateName(i,v){buildingNames[i]=v;renderAll()}
+
+function renderScoringTabs(){
+  document.getElementById('scoringTabs').innerHTML=buildingNames.map((_,i)=>
+    `<button class="btab ${i===activeScoringTab?'active':''}" onclick="setScoringTab(${i})">${String.fromCharCode(65+i)}</button>`).join('')
+}
+function setScoringTab(i){activeScoringTab=i;renderScoringTabs();renderSliders()}
+
+function renderSliders(){
+  document.getElementById('sliderPanels').innerHTML=CONCEPTS.map((c,ci)=>`
+    <div class="slider-row">
+      <div class="slider-head">
+        <span class="slider-name">${c}</span>
+        <input type="number" class="score-num-input" min="0" max="100" value="${scores[ci][activeScoringTab]}"
+          oninput="updateScoreNum(${ci},this)">
+      </div>
+      <input type="range" min="0" max="100" value="${scores[ci][activeScoringTab]}" id="range_${ci}"
+        oninput="updateScoreRange(${ci},this.value)" style="accent-color:${COLORS[activeScoringTab]}">
+      <div class="note-row">
+        <div class="note-label">Notes</div>
+        <textarea rows="1" placeholder="Observations..." oninput="updateNote(${ci},this.value)">${(notes[activeScoringTab]||{})[c]||''}</textarea>
+      </div>
+    </div>`).join('')
+}
+function updateScoreRange(ci,val){
+  scores[ci][activeScoringTab]=parseInt(val);
+  document.querySelectorAll('.score-num-input')[ci].value=val;
+  renderAll()
+}
+function updateScoreNum(ci,input){
+  let val=Math.max(0,Math.min(100,parseInt(input.value)||0));
+  input.value=val;scores[ci][activeScoringTab]=val;
+  document.getElementById(`range_${ci}`).value=val;
+  renderAll()
+}
+function updateNote(ci,val){
+  if(!notes[activeScoringTab])notes[activeScoringTab]={};
+  notes[activeScoringTab][CONCEPTS[ci]]=val;
+}
+
+// --- Score cards ---
+function renderScoreCards(){
+  const bAvg=Math.round(Object.values(BENCHMARK).reduce((a,b)=>a+b)/10);
+  document.getElementById('scoreCards').innerHTML=
+    buildingNames.map((n,i)=>{
+      const ov=weightedScore(i);const cert=getCert(ov);
+      const ab=CONCEPTS.filter((_,ci)=>scores[ci][i]>=targetScore).length;
+      const gap=ov-bAvg;
+      return`<div class="score-card">
+        <div class="card-top-bar" style="background:${COLORS[i]}"></div>
+        <div class="card-label" style="color:${COLORS[i]}">${shortName(i)}</div>
+        <div class="card-score" style="color:${COLORS[i]}">${ov}</div>
+        <div class="cert-pill" style="background:${cert.bg};color:${cert.color}">${cert.label}</div>
+        <div class="card-meta">${ab}/10 meet target (≥${targetScore}) &nbsp;·&nbsp; ${gap>=0?'+':''}${gap} vs benchmark</div>
+      </div>`
+    }).join('')+
+    `<div class="score-card">
+      <div class="card-top-bar" style="background:var(--muted)"></div>
+      <div class="card-label">Industry Benchmark</div>
+      <div class="card-score" style="color:var(--muted)">${bAvg}</div>
+      <div class="card-meta">Estimated baseline across comparable facilities</div>
+    </div>`
+}
+
+// --- Gauges ---
+function drawGauge(canvasId,score,color){
+  const canvas=document.getElementById(canvasId);if(!canvas)return;
+  const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H-10,r=H-18;
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,0);ctx.lineWidth=12;ctx.strokeStyle='#e4e2db';ctx.lineCap='round';ctx.stroke();
+  const angle=Math.PI+(score/100)*Math.PI;
+  ctx.beginPath();ctx.arc(cx,cy,r,Math.PI,angle);ctx.lineWidth=12;ctx.strokeStyle=color;ctx.lineCap='round';ctx.stroke();
+  // target marker
+  const ta=Math.PI+(targetScore/100)*Math.PI;
+  const tx=cx+(r)*Math.cos(ta),ty=cy+(r)*Math.sin(ta);
+  ctx.beginPath();ctx.arc(tx,ty,4,0,2*Math.PI);ctx.fillStyle='#1a1916';ctx.fill();
+  [50,65,75,85].forEach(t=>{
+    const a=Math.PI+(t/100)*Math.PI;
+    ctx.beginPath();ctx.moveTo(cx+(r-7)*Math.cos(a),cy+(r-7)*Math.sin(a));ctx.lineTo(cx+(r+1)*Math.cos(a),cy+(r+1)*Math.sin(a));
+    ctx.lineWidth=1;ctx.strokeStyle='#b0ada4';ctx.stroke();
+  })
+}
+function renderGauges(){
+  document.getElementById('gaugeGrid').innerHTML=buildingNames.map((n,i)=>{
+    const ov=weightedScore(i);const cert=getCert(ov);
+    return`<div class="gauge-card">
+      <div class="gauge-label" style="color:${COLORS[i]}">${shortName(i)}</div>
+      <div class="gauge-canvas-wrap">
+        <canvas id="gauge_${i}" width="160" height="90"></canvas>
+        <div class="gauge-score" style="color:${COLORS[i]}">${ov}</div>
+      </div>
+      <div class="gauge-cert" style="color:${cert.color}">${cert.label}</div>
+    </div>`
+  }).join('');
+  buildingNames.forEach((_,i)=>drawGauge(`gauge_${i}`,weightedScore(i),COLORS[i]))
+}
+
+// --- Radar ---
+function renderRadar(){
+  const ctx=document.getElementById('radarChart').getContext('2d');
+  if(radarChart)radarChart.destroy();
+  const targetData=CONCEPTS.map(()=>targetScore);
+  radarChart=new Chart(ctx,{
+    type:'radar',
+    data:{
+      labels:CONCEPTS,
+      datasets:[
+        {label:'Benchmark',data:CONCEPTS.map(c=>BENCHMARK[c]),borderColor:'#b0ada4',backgroundColor:'rgba(176,173,164,0.07)',borderDash:[4,4],borderWidth:1.5,pointRadius:2},
+        {label:`Target (${targetScore})`,data:targetData,borderColor:'#1a1916',backgroundColor:'rgba(26,25,22,0.04)',borderDash:[2,4],borderWidth:1,pointRadius:0},
+        ...buildingNames.map((n,i)=>({label:shortName(i),data:CONCEPTS.map((_,ci)=>scores[ci][i]),borderColor:COLORS[i],backgroundColor:COLORS_A[i],borderWidth:2,pointRadius:3,pointBackgroundColor:COLORS[i]}))
+      ]
+    },
+    options:{
+      scales:{r:{min:0,max:100,ticks:{stepSize:25,font:{size:10,family:'DM Mono'},color:'#b0ada4'},grid:{color:'#e4e2db'},pointLabels:{font:{size:11,family:'DM Sans'},color:'#7a7871'}}},
+      plugins:{legend:{position:'bottom',labels:{font:{size:11,family:'DM Sans'},padding:16,usePointStyle:true,pointStyleWidth:8}}},
+      responsive:true,maintainAspectRatio:true
+    }
+  })
+}
+
+// --- Heatmap ---
+function renderHeatmap(){
+  const numB=buildingNames.length;
+  const cols=`140px repeat(${numB},1fr)`;
+  let html=`<div class="heatmap-grid" style="grid-template-columns:${cols}">`;
+  html+=`<div></div>`;
+  buildingNames.forEach((_,i)=>html+=`<div class="hm-col-label" style="color:${COLORS[i]};font-weight:500;padding-bottom:6px">${shortName(i)}</div>`);
+  CONCEPTS.forEach((c,ci)=>{
+    html+=`<div class="hm-row-label">${c}</div>`;
+    buildingNames.forEach((_,i)=>{
+      const s=scores[ci][i];const bg=heatColor(s);const aboveTarget=s>=targetScore;
+      html+=`<div class="hm-cell" style="background:${bg};color:rgba(255,255,255,0.9)" title="${c}: ${s}/100${aboveTarget?' ✓ meets target':' ✗ below target'}">${s}${aboveTarget?'<span class="target-marker">▲</span>':''}</div>`
+    })
+  });
+  html+=`<div class="hm-row-label" style="color:var(--muted)">Benchmark</div>`;
+  CONCEPTS.forEach(c=>html+=`<div class="hm-cell" style="background:#e4e2db;color:var(--secondary)">${BENCHMARK[c]}</div>`);
+  html+=`</div>`;
+  document.getElementById('heatmapGrid').innerHTML=html
+}
+
+// --- Breakdown ---
+function renderBreakdown(){
+  const cols=`2fr ${Array(buildingNames.length).fill('1fr').join(' ')} 72px`;
+  let html=`<div class="breakdown-table">
+    <div class="bt-header" style="grid-template-columns:${cols}">
+      <div>Concept Area</div>
+      ${buildingNames.map((n,i)=>`<div style="text-align:center;color:${COLORS[i]}">${shortName(i)}</div>`).join('')}
+      <div style="text-align:center">Bench</div>
+    </div>`;
+  CONCEPTS.forEach((c,ci)=>{
+    html+=`<div class="bt-row" style="grid-template-columns:${cols}">
+      <div><div class="concept-name">${c}</div><div class="concept-desc">${DESCS[c]}</div></div>
+      ${buildingNames.map((_,i)=>{
+        const s=scores[ci][i];const col=scoreColor(s);
+        const tpct=Math.min(targetScore,100);
+        return`<div class="score-cell"><div class="sc-num" style="color:${col}">${s}</div>
+          <div class="mini-bar-bg">
+            <div class="mini-bar" style="width:${s}%;background:${col}"></div>
+            <div class="target-tick" style="left:${tpct}%"></div>
+          </div></div>`}).join('')}
+      <div class="bench-cell">${BENCHMARK[c]}</div>
+    </div>`
+  });
+  html+=`</div>`;
+  document.getElementById('breakdownTable').innerHTML=html
+}
+
+// --- Gap ---
+function renderGapBuildingSelect(){
+  document.getElementById('gapBuildingSelect').innerHTML=buildingNames.map((_,i)=>
+    `<button class="bsel-btn ${i===activeGapB?'active':''}" style="${i===activeGapB?`color:${COLORS[i]};border-color:${COLORS[i]}`:''}" onclick="setGapB(${i})">${shortName(i)}</button>`).join('')
+}
+function setGapB(i){activeGapB=i;renderGapBuildingSelect();renderGapBars()}
+function renderGapBars(){
+  const gaps=CONCEPTS.map((c,ci)=>({c,gap:scores[ci][activeGapB]-BENCHMARK[c],score:scores[ci][activeGapB],vsTarget:scores[ci][activeGapB]-targetScore})).sort((a,b)=>a.gap-b.gap);
+  const maxA=30;
+  document.getElementById('gapBars').innerHTML=gaps.map(({c,gap,score,vsTarget})=>{
+    const col=gap>=0?'#2d6a4f':'#991b1b';
+    const pct=Math.min(Math.abs(gap)/maxA*50,50);
+    const left=gap>=0?'50%':`${50-pct}%`;
+    const targetFlag=vsTarget<0?`<span style="font-size:10px;color:var(--amber);margin-left:6px">↓${Math.abs(vsTarget)} from target</span>`:'';
+    return`<div class="gap-item">
+      <div class="gap-concept">${c}${targetFlag}</div>
+      <div class="gap-bar-wrap">
+        <div class="gap-bar-bg">
+          <div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:var(--text);opacity:.2"></div>
+          <div class="gap-bar-fill" style="left:${left};width:${pct}%;background:${col}"></div>
+        </div>
+      </div>
+      <div class="gap-val" style="color:${col}">${gap>=0?'+':''}${gap}</div>
+    </div>`
+  }).join('');
+  const below=gaps.filter(g=>g.gap<0);const above=gaps.filter(g=>g.gap>=0);
+  let recs='';
+  if(below.length){recs+=`<div class="sec-div">Below Benchmark — Recommended Actions</div>`;
+    below.forEach(({c,gap,score})=>{
+      const note=(notes[activeGapB]||{})[c];
+      recs+=`<div class="rec-item" style="border-left:3px solid #e53e3e">
+        <div class="rec-head"><span class="rec-concept">${c}</span><span class="rec-badge" style="background:var(--red-bg);color:var(--red)">${score}/100 &nbsp;${gap}</span></div>
+        <div class="rec-text">${RECS[c]}</div>
+        ${note?`<div class="rec-note">Note: ${note}</div>`:''}
+      </div>`
+    })
+  }
+  if(above.length){recs+=`<div class="sec-div">Strengths — At or Above Benchmark</div>`;
+    above.forEach(({c,gap,score})=>{
+      const note=(notes[activeGapB]||{})[c];
+      recs+=`<div class="rec-item" style="border-left:3px solid #2d6a4f">
+        <div class="rec-head"><span class="rec-concept">${c}</span><span class="rec-badge" style="background:var(--green-bg);color:var(--green)">${score}/100 &nbsp;+${gap}</span></div>
+        ${note?`<div class="rec-note">Note: ${note}</div>`:''}
+      </div>`
+    })
+  }
+  document.getElementById('gapRecs').innerHTML=recs
+}
+
+// --- Priority ---
+function renderPriorityBuildingSelect(){
+  document.getElementById('priorityBuildingSelect').innerHTML=buildingNames.map((_,i)=>
+    `<button class="bsel-btn ${i===activePriorityB?'active':''}" style="${i===activePriorityB?`color:${COLORS[i]};border-color:${COLORS[i]}`:''}" onclick="setPriorityB(${i})">${shortName(i)}</button>`).join('')
+}
+function setPriorityB(i){activePriorityB=i;renderPriorityBuildingSelect();renderPriority()}
+function renderPriority(){
+  const ctx=document.getElementById('priorityChart').getContext('2d');
+  if(priorityChartObj)priorityChartObj.destroy();
+  const data=CONCEPTS.map((c,ci)=>({x:EFFORT[c],y:IMPACT[c],label:c,score:scores[ci][activePriorityB],r:Math.max(7,Math.round((100-scores[ci][activePriorityB])/5))}));
+  priorityChartObj=new Chart(ctx,{
+    type:'bubble',
+    data:{datasets:[{data,backgroundColor:data.map(d=>scoreColor(d.score)+'99'),borderColor:data.map(d=>scoreColor(d.score)),borderWidth:1.5}]},
+    options:{
+      scales:{
+        x:{min:.5,max:5.5,title:{display:true,text:'Implementation Effort →',font:{size:11,family:'DM Sans'},color:'#7a7871'},grid:{color:'#e4e2db'},ticks:{font:{size:10,family:'DM Mono'},color:'#b0ada4'}},
+        y:{min:.5,max:5.5,title:{display:true,text:'Health Impact ↑',font:{size:11,family:'DM Sans'},color:'#7a7871'},grid:{color:'#e4e2db'},ticks:{font:{size:10,family:'DM Mono'},color:'#b0ada4'}}
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return[`${d.label}`,`Score: ${d.score}/100`,`Impact: ${d.y}/5  Effort: ${d.x}/5`]}},bodyFont:{family:'DM Sans',size:12}}},
+      responsive:true,maintainAspectRatio:false
+    },
+    plugins:[{afterDraw:chart=>{
+      const{ctx,scales:{x,y}}=chart;
+      const mx=x.getPixelForValue(3),my=y.getPixelForValue(3);
+      ctx.save();ctx.strokeStyle='#e4e2db';ctx.setLineDash([4,4]);ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(mx,chart.chartArea.top);ctx.lineTo(mx,chart.chartArea.bottom);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(chart.chartArea.left,my);ctx.lineTo(chart.chartArea.right,my);ctx.stroke();
+      ctx.font='10px DM Sans';ctx.textAlign='center';ctx.setLineDash([]);
+      ctx.fillStyle='#2d6a4f';ctx.fillText('Quick Wins',chart.chartArea.left+(mx-chart.chartArea.left)/2,chart.chartArea.top+14);
+      ctx.fillStyle='#b45309';ctx.fillText('Major Projects',mx+(chart.chartArea.right-mx)/2,chart.chartArea.top+14);
+      ctx.fillStyle='#b0ada4';ctx.fillText('Low Priority',chart.chartArea.left+(mx-chart.chartArea.left)/2,chart.chartArea.bottom-6);
+      ctx.fillText('Reconsider',mx+(chart.chartArea.right-mx)/2,chart.chartArea.bottom-6);
+      data.forEach(d=>{const xp=x.getPixelForValue(d.x),yp=y.getPixelForValue(d.y);ctx.fillStyle='#1a1916';ctx.font='10px DM Sans';ctx.textAlign='center';ctx.fillText(d.label,xp,yp-d.r-5)});
+      ctx.restore()
+    }}]
+  })
+}
+
+// --- Trend ---
+function saveTrend(){
+  const label=document.getElementById('trendLabel').value||`Period ${trendData.length+1}`;
+  trendData.push({label,scores:buildingNames.map((_,i)=>weightedScore(i))});
+  renderTrend()
+}
+function clearTrend(){trendData=[];renderTrend()}
+function renderTrend(){
+  const wrap=document.getElementById('trendChartWrap'),empty=document.getElementById('trendEmpty');
+  if(trendData.length<2){wrap.style.display='none';empty.style.display='block';empty.textContent=trendData.length===1?'Save one more snapshot to see the trend line.':'Save two or more snapshots to see the trend line.';return}
+  wrap.style.display='block';empty.style.display='none';
+  const ctx=document.getElementById('trendChart').getContext('2d');
+  if(trendChartObj)trendChartObj.destroy();
+  trendChartObj=new Chart(ctx,{
+    type:'line',
+    data:{labels:trendData.map(d=>d.label),datasets:[
+      ...buildingNames.map((n,i)=>({label:shortName(i),data:trendData.map(d=>d.scores[i]),borderColor:COLORS[i],backgroundColor:COLORS_A[i],borderWidth:2,pointRadius:4,pointBackgroundColor:COLORS[i],tension:.3})),
+      {label:`Target (${targetScore})`,data:trendData.map(()=>targetScore),borderColor:'#1a1916',backgroundColor:'transparent',borderDash:[4,4],borderWidth:1,pointRadius:0}
+    ]},
+    options:{scales:{y:{min:0,max:100,grid:{color:'#e4e2db'},ticks:{font:{size:10,family:'DM Mono'},color:'#b0ada4'}},x:{grid:{color:'#e4e2db'},ticks:{font:{size:11,family:'DM Sans'},color:'#7a7871'}}},plugins:{legend:{labels:{font:{size:11,family:'DM Sans'},usePointStyle:true}}},responsive:true,maintainAspectRatio:true}
+  })
+}
+
+// --- Export ---
+function exportTxt(){
+  const lines=['WELL AT-SCALE PERFORMANCE REPORT',`Generated: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}`,`Target Score: ${targetScore}/100`,'='.repeat(50)];
+  buildingNames.forEach((n,i)=>{
+    const ov=weightedScore(i);const cert=getCert(ov);
+    lines.push('',n,`Overall Score: ${ov}/100  |  Level: ${cert.label}`,'-'.repeat(40));
+    CONCEPTS.forEach((c,ci)=>{
+      const s=scores[ci][i];const gap=s-BENCHMARK[c];const note=(notes[i]||{})[c];
+      lines.push(`${c}: ${s}/100  (Gap: ${gap>=0?'+':''}${gap})  [${s>=targetScore?'MEETS TARGET':'BELOW TARGET'}]`);
+      if(note)lines.push(`  Note: ${note}`)
+    });
+    const below=CONCEPTS.map((c,ci)=>({c,gap:scores[ci][i]-BENCHMARK[c]})).filter(x=>x.gap<0).sort((a,b)=>a.gap-b.gap);
+    if(below.length){lines.push('','Top Recommendations:');below.slice(0,3).forEach(({c})=>lines.push(`  ${c}: ${RECS[c]}`))}
+  });
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain'}));a.download=`WELL_Report_${new Date().toISOString().slice(0,10)}.txt`;a.click()
+}
+function exportCsv(){
+  const rows=[['Concept Area',...buildingNames.map(shortName),'Benchmark','Target'],...CONCEPTS.map((c,ci)=>[c,...buildingNames.map((_,i)=>scores[ci][i]),BENCHMARK[c],targetScore])];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download=`WELL_Scores_${new Date().toISOString().slice(0,10)}.csv`;a.click()
+}
+
+// --- Tab switching ---
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(`tab-${name}`).classList.add('active');
+  btn.classList.add('active');
+  if(name==='overview'){renderGauges();renderRadar()}
+  if(name==='heatmap')renderHeatmap();
+  if(name==='breakdown')renderBreakdown();
+  if(name==='gaps'){renderGapBuildingSelect();renderGapBars()}
+  if(name==='priority'){renderPriorityBuildingSelect();renderPriority()}
+}
+
+function renderAll(){
+  renderBuildingInputs();renderScoringTabs();renderSliders();renderScoreCards();
+  const active=document.querySelector('.tab-panel.active')?.id?.replace('tab-','');
+  if(active==='overview'){renderGauges();renderRadar()}
+  if(active==='heatmap')renderHeatmap();
+  if(active==='breakdown')renderBreakdown();
+  if(active==='gaps')renderGapBars();
+  if(active==='priority')renderPriority();
+}
+
+// --- Init ---
+document.getElementById('printDate').textContent=`Generated: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}`;
+loadFromUrl();
+document.getElementById('targetScoreInput').value=targetScore;
+renderBuildingInputs();renderScoringTabs();renderSliders();renderScoreCards();renderGauges();renderRadar();
+</script>
+</body>
+</html>
